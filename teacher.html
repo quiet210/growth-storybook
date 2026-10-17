@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>성장 그림책 · 교사용</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+<div class="wrap" id="gateWrap">
+  <header class="top">
+    <div class="eyebrow">교사용</div>
+    <h1>성장 그림책 · 수업방 관리</h1>
+    <p>선생님마다 수업방을 만들면 학생 기록이 서로 섞이지 않아요.</p>
+  </header>
+
+  <div class="tabs" style="justify-content:center;margin-bottom:14px">
+    <button class="on" data-gate="login">내 수업방 들어가기</button>
+    <button data-gate="create">새 수업방 만들기</button>
+  </div>
+
+  <section id="gate-login" class="card" style="max-width:460px;margin:0 auto">
+    <label class="field"><span>수업방 코드</span><input type="text" id="lgRoom" maxlength="8" autocomplete="off" style="text-transform:uppercase;letter-spacing:.1em"></label>
+    <label class="field"><span>비밀번호</span><input type="password" id="lgPw" autocomplete="current-password"></label>
+    <div class="actions"><span class="muted">수업방을 만들 때 정한 비밀번호예요.</span><button class="btn" id="lgBtn">들어가기</button></div>
+  </section>
+
+  <section id="gate-create" class="card hidden" style="max-width:620px;margin:0 auto">
+    <p class="lead">학교 코드는 이 프로그램을 설치한 선생님께 받으세요.</p>
+    <label class="field"><span>학교 코드</span><input type="password" id="crSchool" autocomplete="off"></label>
+    <div class="row2">
+      <label class="field"><span>선생님 이름</span><input type="text" id="crTeacher" maxlength="30"></label>
+      <label class="field"><span>수업 이름</span><input type="text" id="crTitle" maxlength="60" placeholder="예) 1학년 국어 「멍키 스패너」"></label>
+    </div>
+    <div class="row2">
+      <label class="field"><span>학년</span><select id="crGrade"><option>1</option><option>2</option><option>3</option></select></label>
+      <label class="field"><span>수업하는 반</span><small>쉼표로 구분</small><input type="text" id="crClasses" placeholder="5, 8, 15, 18"></label>
+    </div>
+    <label class="field"><span>패들렛 주소 (나중에 넣어도 돼요)</span><input type="url" id="crPadlet" placeholder="https://padlet.com/..."></label>
+    <div class="row2">
+      <label class="field"><span>비밀번호 (4자 이상)</span><input type="password" id="crPw" autocomplete="new-password"></label>
+      <label class="field"><span>비밀번호 확인</span><input type="password" id="crPw2" autocomplete="new-password"></label>
+    </div>
+    <div class="actions"><span class="muted">비밀번호는 암호화되어 저장돼요. 잊으면 관리자에게 문의하세요.</span><button class="btn" id="crBtn">수업방 만들기</button></div>
+  </section>
+</div>
+
+<div class="wrap wide hidden" id="mainWrap">
+  <div class="card roomhead">
+    <div>
+      <div class="muted">수업방 코드</div>
+      <div class="code" id="mCode"></div>
+      <div id="mDesc"></div>
+    </div>
+    <div class="actions" style="margin:0">
+      <button class="btn" id="qrBtn">학생 접속 QR·링크</button>
+      <button class="btn ghost" id="settingsBtn">설정</button>
+      <button class="btn ghost" id="outBtn">나가기</button>
+    </div>
+  </div>
+
+  <div class="bar">
+    <select id="clsFilter" style="width:auto"></select>
+    <button class="btn ghost small" id="refresh">새로고침</button>
+    <button class="btn ghost small" id="csvBtn">엑셀(CSV) 내려받기</button>
+    <span class="muted grow" id="updated"></span>
+    <div class="tabs">
+      <button data-tab="progress" class="on">진행 현황</button>
+      <button data-tab="wall">성장 문장 모아보기</button>
+    </div>
+  </div>
+
+  <section id="tab-progress">
+    <div class="stats" id="stats"></div>
+    <div class="tablewrap"><table id="tbl"></table></div>
+    <p class="muted">행을 누르면 학생이 쓴 내용 전체를 볼 수 있어요. 잘못 만든 기록은 거기서 지울 수 있어요. 20초마다 자동으로 새로고침됩니다.</p>
+  </section>
+
+  <section id="tab-wall" class="hidden">
+    <div class="tabs" id="wallTabs" style="margin-bottom:14px"></div>
+    <div class="wall" id="wall"></div>
+  </section>
+</div>
+
+<div id="modal" class="modal hidden"><div class="card" id="modalBody"></div></div>
+
+<script src="config.js"></script>
+<script src="assets/api.js"></script>
+<script>
+const { api, esc, toast, store, normRoom } = App;
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const yes = v => v === true || v === 'TRUE';
+let AUTH = null, ROOM = null, rows = [], wallKey = 'growthAlso', timer = null;
+
+// ---------- 들어가기 / 만들기 ----------
+document.addEventListener('click', e => {
+  const g = e.target.closest('[data-gate]');
+  if (!g) return;
+  $$('[data-gate]').forEach(b => b.classList.toggle('on', b === g));
+  $('#gate-login').classList.toggle('hidden', g.dataset.gate !== 'login');
+  $('#gate-create').classList.toggle('hidden', g.dataset.gate !== 'create');
+});
+
+async function busy(btn, text, fn) {
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = text;
+  try { return await fn(); }
+  catch (err) { toast(err.message); }
+  finally { btn.disabled = false; btn.textContent = label; }
+}
+
+$('#lgBtn').onclick = () => busy($('#lgBtn'), '확인 중…', async () => {
+  const room = normRoom($('#lgRoom').value), password = $('#lgPw').value;
+  if (!room || !password) return toast('수업방 코드와 비밀번호를 입력해 주세요.');
+  const info = await api('teacherLogin', { room, password });
+  start({ room, password }, info);
+});
+$('#lgPw').addEventListener('keydown', e => { if (e.key === 'Enter') $('#lgBtn').click(); });
+
+$('#crBtn').onclick = () => busy($('#crBtn'), '만드는 중…', async () => {
+  if ($('#crPw').value !== $('#crPw2').value) return toast('비밀번호 확인이 일치하지 않아요.');
+  const info = await api('createRoom', {
+    schoolCode: $('#crSchool').value, teacher: $('#crTeacher').value, title: $('#crTitle').value,
+    grade: $('#crGrade').value, classes: $('#crClasses').value, padletUrl: $('#crPadlet').value,
+    password: $('#crPw').value,
+  });
+  start({ room: info.room, password: $('#crPw').value }, info);
+  showQr(true);
+});
+
+function start(auth, info) {
+  AUTH = auth; ROOM = info;
+  store.set('sessionStorage', 'gs_teacher', JSON.stringify(auth));
+  $('#gateWrap').classList.add('hidden');
+  $('#mainWrap').classList.remove('hidden');
+  renderRoom();
+  load();
+  clearInterval(timer);
+  timer = setInterval(() => { if (!document.hidden) load(); }, 20000);
+}
+
+$('#outBtn').onclick = () => {
+  store.del('sessionStorage', 'gs_teacher');
+  clearInterval(timer); AUTH = null; ROOM = null; rows = [];
+  $('#lgPw').value = '';
+  $('#mainWrap').classList.add('hidden'); $('#gateWrap').classList.remove('hidden');
+};
+
+function renderRoom() {
+  $('#mCode').textContent = ROOM.room;
+  $('#mDesc').innerHTML = `<b>${esc(ROOM.title)}</b> · ${esc(ROOM.teacher)} 선생님 · ${esc(ROOM.grade)}학년 ${ROOM.classes.map(esc).join(', ')}반`;
+  const cur = $('#clsFilter').value;
+  $('#clsFilter').innerHTML = '<option value="">전체 반</option>' +
+    ROOM.classes.map(c => `<option value="${esc(c)}">${esc(ROOM.grade)}-${esc(c)}반</option>`).join('');
+  $('#clsFilter').value = ROOM.classes.indexOf(cur) !== -1 ? cur : '';
+}
+
+// ---------- 데이터 ----------
+async function load() {
+  try {
+    const res = await api('teacherData', AUTH);
+    ROOM = res.room; rows = res.rows;
+    renderRoom();
+    $('#updated').textContent = '마지막 갱신 ' + new Date().toLocaleTimeString('ko-KR');
+    render();
+  } catch (err) { toast(err.message); }
+}
+$('#refresh').onclick = load;
+$('#clsFilter').onchange = render;
+
+const STORY_KEYS = ['hardship', 'pastAction', 'pastView', 'nowAction', 'reason', 'growth'];
+function status(r) {
+  return {
+    story: STORY_KEYS.every(k => r[k]),
+    prompt: !!r.prompt && r.step >= 1,
+    check: yes(r.check1) && yes(r.check2) && yes(r.check3),
+    scene: !!r.keyScene,
+    friend: !!r.growthAlso,
+    done: r.step >= 4,
+  };
+}
+function filtered() { const c = $('#clsFilter').value; return rows.filter(r => !c || r.cls === c); }
+
+function render() {
+  const list = filtered();
+  const st = list.map(status);
+  const count = k => st.filter(s => s[k]).length;
+  $('#stats').innerHTML = [
+    ['참여 학생', list.length], ['이야기 완성', count('story')], ['프롬프트 생성', count('prompt')],
+    ['그림책 점검 완료', count('check')], ['최종 제출', count('done')],
+  ].map(([l, n]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('');
+
+  const seat = {};
+  list.forEach(r => { const k = r.cls + '-' + r.num; seat[k] = (seat[k] || 0) + 1; });
+  const d = on => `<span class="dot ${on ? 'on' : ''}">${on ? '✓' : ''}</span>`;
+  $('#tbl').innerHTML = '<tr><th>반</th><th>번호</th><th>이름</th><th>이야기</th><th>프롬프트</th><th>점검</th><th>중요 장면</th><th>감상</th><th>제출</th><th>나의 성장 한 문장</th><th>저장</th></tr>' +
+    (list.length ? list.map((r, i) => {
+      const s = st[i];
+      const dup = seat[r.cls + '-' + r.num] > 1 ? ' <span class="dup" title="같은 반·번호에 이름이 다른 기록이 있어요">⚠ 번호 중복</span>' : '';
+      return `<tr class="click" data-id="${esc(r.id)}">
+      <td>${esc(r.cls)}</td><td>${esc(r.num)}</td><td>${esc(r.name)}${dup}</td>
+      <td>${d(s.story)}</td><td>${d(s.prompt)}</td><td>${d(s.check)}</td><td>${d(s.scene)}</td><td>${d(s.friend)}</td><td>${d(s.done)}</td>
+      <td class="clip">${esc(r.growth)}</td><td class="muted">${esc(String(r.updatedAt).slice(5, 16))}</td></tr>`;
+    }).join('') : '<tr><td colspan="11" class="muted" style="text-align:center;padding:30px">아직 들어온 학생이 없어요. 위의 <b>학생 접속 QR·링크</b>를 학생들에게 보여 주세요.</td></tr>');
+  renderWall();
+}
+
+const WALLS = {
+  growthAlso: ['성장에는 ___도 있다', v => `성장에는 <em>${esc(v)}</em>도 있다.`],
+  realized: ['삶을 돌아보며 깨달은 것', v => `「${esc(ROOM.workTitle)}」을 읽고 나의 삶을 돌아보면서 <em>${esc(v)}</em>을/를 깨달았다.`],
+  literature: ['문학은 나에게', v => `문학은 나에게 <em>${esc(v)}</em>을/를 가능하게 해 준다.`],
+  growth: ['나의 성장 한 문장', v => esc(v)],
+  insight: ['새롭게 깨달은 점', v => esc(v)],
+};
+function renderWall() {
+  $('#wallTabs').innerHTML = Object.keys(WALLS).map(k =>
+    `<button class="${k === wallKey ? 'on' : ''}" data-wall="${k}">${WALLS[k][0]}</button>`).join('');
+  const list = filtered().filter(r => r[wallKey]);
+  $('#wall').innerHTML = list.length ? list.map(r => `<div class="wallnote">${WALLS[wallKey][1](r[wallKey])}
+      <div class="by">${yes(r.anonymous) ? '익명' : esc(r.cls) + '반 ' + esc(r.name)}</div></div>`).join('')
+    : '<p class="muted">아직 제출된 문장이 없어요.</p>';
+}
+
+document.addEventListener('click', e => {
+  const tr = e.target.closest('tr.click');
+  if (tr) return openDetail(rows.find(r => r.id === tr.dataset.id));
+  const tab = e.target.closest('[data-tab]');
+  if (tab) {
+    $$('[data-tab]').forEach(b => b.classList.toggle('on', b === tab));
+    $('#tab-progress').classList.toggle('hidden', tab.dataset.tab !== 'progress');
+    $('#tab-wall').classList.toggle('hidden', tab.dataset.tab !== 'wall');
+  }
+  const wt = e.target.closest('[data-wall]');
+  if (wt) { wallKey = wt.dataset.wall; renderWall(); }
+  if (e.target.id === 'modal' || e.target.closest('[data-close]')) closeModal();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+function openModal(html) { $('#modalBody').innerHTML = html; $('#modal').classList.remove('hidden'); }
+function closeModal() { $('#modal').classList.add('hidden'); $('#modalBody').innerHTML = ''; }
+
+function openDetail(r) {
+  if (!r) return;
+  const kv = (label, v) => `<dl class="kv"><dt>${label}</dt><dd>${esc(v || '—')}</dd></dl>`;
+  openModal(`
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <h2>${esc(r.cls)}반 ${esc(r.num)}번 ${esc(r.name)}</h2>
+      <button class="btn ghost small" data-close>닫기</button></div>
+    <p class="muted" style="margin-top:0">마지막 저장 ${esc(r.updatedAt)}</p>
+    <div class="cols">
+      <div class="col past">${kv('1. 내가 겪었던 어려움', r.hardship)}${kv('2. 그때 나는 이렇게 행동했다', r.pastAction)}${kv('3. 지금 생각하는 그때의 나', r.pastView)}</div>
+      <div class="col now">${kv('4. 같은 상황이라면', r.nowAction)}${kv('5. 그렇게 행동하려는 이유', r.reason)}${kv('6. 나의 성장, 한 문장', r.growth)}</div>
+    </div>
+    <h3>그림책 점검</h3>
+    <p>${yes(r.check1) ? '✅' : '⬜'} 어려움 &nbsp; ${yes(r.check2) ? '✅' : '⬜'} 변화 &nbsp; ${yes(r.check3) ? '✅' : '⬜'} 전하고 싶은 생각</p>
+    ${kv('가장 중요한 장면', r.keyScene)}${kv('장면이 중요한 까닭', r.sceneWhy)}${kv('새롭게 깨달은 점', r.insight)}
+    <h3>친구 이야기 & 정리</h3>
+    ${kv('읽은 그림책', r.friendBook)}${kv('친구의 어려움/변화의 순간', r.friendMoment)}${kv('성장에는 ~도 있다', r.growthAlso)}
+    ${kv('비슷한 점/다른 점', r.compare)}${kv('깨달은 것', r.realized)}${kv('문학은 나에게', r.literature)}
+    ${kv('익명 공유', yes(r.anonymous) ? '예' : '아니오')}
+    <details><summary class="muted">생성된 프롬프트 보기</summary><pre style="white-space:pre-wrap;font-size:13px">${esc(r.prompt)}</pre></details>
+    <div class="actions"><button class="btn danger small" id="delBtn">이 기록 지우기</button><button class="btn ghost small" data-close>닫기</button></div>`);
+  $('#delBtn').onclick = () => {
+    if (!confirm(`${r.cls}반 ${r.num}번 ${r.name} 학생의 기록을 지울까요? 되돌릴 수 없어요.`)) return;
+    busy($('#delBtn'), '지우는 중…', async () => {
+      await api('deleteStudent', Object.assign({ id: r.id }, AUTH));
+      toast('지웠어요.'); closeModal(); load();
+    });
+  };
+}
+
+// ---------- QR / 링크 ----------
+function studentLink() {
+  const u = new URL('index.html', location.href);
+  u.search = '?room=' + ROOM.room;
+  u.hash = '';
+  return u.toString();
+}
+function showQr(justCreated) {
+  const link = studentLink();
+  openModal(`
+    ${justCreated ? '<div class="alert ok">수업방이 만들어졌어요! 수업방 코드와 비밀번호를 꼭 메모해 두세요.</div>' : ''}
+    <div style="text-align:center">
+      <div class="muted">학생 접속용 · 수업방 코드</div>
+      <div class="code" style="font-size:44px">${esc(ROOM.room)}</div>
+      <div id="qr"></div>
+    </div>
+    <div class="linkbox"><input type="text" readonly value="${esc(link)}" id="linkInput"><button class="btn small" id="copyLink">복사</button></div>
+    <p class="muted">이 화면을 TV에 띄우면 학생들이 태블릿 카메라로 QR을 찍어 바로 들어올 수 있어요.</p>
+    <div class="actions"><span></span><button class="btn ghost small" data-close>닫기</button></div>`);
+  if (window.QRCode) new QRCode(document.getElementById('qr'), { text: link, width: 480, height: 480, correctLevel: QRCode.CorrectLevel.M });
+  else $('#qr').innerHTML = '<p class="muted">QR을 불러오지 못했어요. 아래 링크를 사용하세요.</p>';
+  $('#copyLink').onclick = () => {
+    const inp = $('#linkInput'); inp.select();
+    (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject())
+      .then(() => toast('링크를 복사했어요.'), () => { try { document.execCommand('copy'); toast('링크를 복사했어요.'); } catch (e) {} });
+  };
+}
+$('#qrBtn').onclick = () => showQr(false);
+
+// ---------- 설정 ----------
+$('#settingsBtn').onclick = () => {
+  openModal(`
+    <h2>수업방 설정</h2>
+    <div class="row2">
+      <label class="field"><span>선생님 이름</span><input type="text" id="stTeacher" maxlength="30" value="${esc(ROOM.teacher)}"></label>
+      <label class="field"><span>수업 이름</span><input type="text" id="stTitle" maxlength="60" value="${esc(ROOM.title)}"></label>
+    </div>
+    <div class="row2">
+      <label class="field"><span>학년</span><select id="stGrade">${['1', '2', '3'].map(g => `<option ${g === ROOM.grade ? 'selected' : ''}>${g}</option>`).join('')}</select></label>
+      <label class="field"><span>수업하는 반</span><input type="text" id="stClasses" value="${esc(ROOM.classes.join(', '))}"></label>
+    </div>
+    <label class="field"><span>패들렛 주소</span><input type="url" id="stPadlet" value="${esc(ROOM.padletUrl)}" placeholder="https://padlet.com/..."></label>
+    <label class="field"><span>새 비밀번호 (바꿀 때만)</span><input type="password" id="stPw" autocomplete="new-password"></label>
+    <div class="actions"><button class="btn ghost small" data-close>취소</button><button class="btn" id="stSave">저장</button></div>`);
+  $('#stSave').onclick = () => busy($('#stSave'), '저장 중…', async () => {
+    const newPassword = $('#stPw').value;
+    ROOM = await api('updateRoom', Object.assign({}, AUTH, {
+      teacher: $('#stTeacher').value, title: $('#stTitle').value, grade: $('#stGrade').value,
+      classes: $('#stClasses').value, padletUrl: $('#stPadlet').value, newPassword,
+    }));
+    if (newPassword) { AUTH.password = newPassword; store.set('sessionStorage', 'gs_teacher', JSON.stringify(AUTH)); }
+    renderRoom(); render(); closeModal(); toast('설정을 저장했어요.');
+  });
+};
+
+// ---------- CSV ----------
+const CSV_COLS = [
+  ['cls', '반'], ['num', '번호'], ['name', '이름'], ['updatedAt', '저장 시각'], ['step', '진행 단계'],
+  ['hardship', '내가 겪었던 어려움'], ['pastAction', '그때 나의 행동'], ['pastView', '지금 생각하는 그때의 나'],
+  ['nowAction', '같은 상황이라면'], ['reason', '그렇게 행동하려는 이유'], ['growth', '나의 성장 한 문장'],
+  ['check1', '점검-어려움'], ['check2', '점검-변화'], ['check3', '점검-전하고 싶은 생각'],
+  ['keyScene', '가장 중요한 장면'], ['sceneWhy', '장면이 중요한 까닭'], ['insight', '새롭게 깨달은 점'],
+  ['friendBook', '읽은 친구 그림책'], ['friendMoment', '친구의 어려움/변화'], ['growthAlso', '성장에는 ~도 있다'],
+  ['compare', '비슷한 점/다른 점'], ['realized', '깨달은 것'], ['literature', '문학은 나에게'], ['prompt', '생성 프롬프트'],
+];
+$('#csvBtn').onclick = () => {
+  const list = filtered();
+  if (!list.length) return toast('내려받을 기록이 없어요.');
+  const q = v => '"' + String(v == null ? '' : (typeof v === 'boolean' ? (v ? 'O' : '') : v)).replace(/"/g, '""') + '"';
+  const csv = [CSV_COLS.map(c => q(c[1])).join(',')]
+    .concat(list.map(r => CSV_COLS.map(c => q(r[c[0]])).join(','))).join('\r\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `성장그림책_${ROOM.room}_${$('#clsFilter').value ? $('#clsFilter').value + '반_' : ''}${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+// ---------- 시작 ----------
+(function init() {
+  const saved = store.get('sessionStorage', 'gs_teacher');
+  if (!saved) return;
+  try {
+    const auth = JSON.parse(saved);
+    $('#lgRoom').value = auth.room;
+    api('teacherLogin', auth).then(info => start(auth, info)).catch(() => store.del('sessionStorage', 'gs_teacher'));
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>

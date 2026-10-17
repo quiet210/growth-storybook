@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>나의 성장 그림책 도우미</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">6차시 · 나의 삶 성찰하기</div>
+    <h1 id="appTitle">나의 성장 그림책 도우미</h1>
+    <p id="appSub">나의 경험을 한 권의 그림책으로</p>
+  </header>
+
+  <!-- 수업방 들어가기 -->
+  <section id="roomCard" class="card">
+    <h2>수업방 들어가기</h2>
+    <p class="lead">선생님이 알려 준 수업방 코드 6자리를 입력하세요.</p>
+    <div class="linkbox">
+      <input type="text" id="roomInput" maxlength="8" autocomplete="off" autocapitalize="characters" placeholder="예) K7Q2MX" style="text-transform:uppercase;letter-spacing:.1em">
+      <button class="btn" id="roomBtn">확인</button>
+    </div>
+  </section>
+
+  <!-- 학생 확인 -->
+  <section id="login" class="card hidden">
+    <h2>시작하기</h2>
+    <p class="lead"><span class="roombadge" id="roomBadge"></span> <span id="roomDesc"></span></p>
+    <div class="row">
+      <label class="field"><span>반</span><select id="cls"></select></label>
+      <label class="field"><span>번호</span><input type="number" id="num" min="1" max="99" inputmode="numeric"></label>
+      <label class="field"><span>이름</span><input type="text" id="name" maxlength="20" autocomplete="off"></label>
+    </div>
+    <p class="muted" style="margin:0">반·번호·이름이 모두 같아야 지난번에 쓴 내용을 이어서 쓸 수 있어요. 이름은 선생님만 보고, AI에는 들어가지 않아요.</p>
+    <div id="loginNotice"></div>
+    <div class="actions">
+      <button class="btn ghost" id="changeRoom">다른 수업방</button>
+      <button class="btn" id="startBtn">시작하기</button>
+    </div>
+  </section>
+
+  <div id="app" class="hidden">
+    <div class="who"><span id="who"></span><button class="btn ghost small" id="logout">다른 학생으로 시작</button></div>
+    <nav class="stepper" id="stepper"></nav>
+
+    <!-- STEP 1 -->
+    <section class="card step" data-step="1">
+      <h2>1. 내가 찾은 변화</h2>
+      <p class="lead">5차시 활동지에 쓴 내용을 옮겨 적어요. 경험을 새로 꾸며내지 말고, 내가 쓴 그대로 적어요.</p>
+      <div class="cols">
+        <div class="col past">
+          <h3>과거의 나 · 그때의 생각과 태도</h3>
+          <label class="field"><span>1. 내가 겪었던 어려움</span><small>친구 관계, 공부, 도전, 실수 등</small><textarea data-k="hardship"></textarea></label>
+          <label class="field"><span>2. 그때 나는 이렇게 행동했다</span><small>어떻게 행동했고, 어떤 마음이 들었나요?</small><textarea data-k="pastAction"></textarea></label>
+          <label class="field" style="margin-bottom:0"><span>3. 지금 생각하는 그때의 나</span><small>지금 돌아보면 그때의 행동을 어떻게 생각하나요?</small><textarea data-k="pastView"></textarea></label>
+        </div>
+        <div class="col now">
+          <h3>현재의 나 · 지금의 생각과 태도</h3>
+          <label class="field"><span>4. 「<span class="work"></span>」를 읽은 지금, 같은 상황이라면</span><small>같은 어려움을 다시 겪는다면 어떻게 행동하고 싶나요?</small><textarea data-k="nowAction"></textarea></label>
+          <label class="field"><span>5. 그렇게 행동하려는 이유</span><small>한경의 경험과 연결해 보세요.</small><textarea data-k="reason"></textarea></label>
+          <label class="field" style="margin-bottom:0"><span>6. 나의 성장, 한 문장으로</span><small>「<span class="work"></span>」를 읽고 나는 ___라고 생각하게 되었다.</small><textarea data-k="growth"></textarea></label>
+        </div>
+      </div>
+      <div class="actions"><span></span><button class="btn" data-next="2">저장하고 다음</button></div>
+    </section>
+
+    <!-- STEP 2 -->
+    <section class="card step" data-step="2">
+      <h2>2. 그림책 프롬프트 만들기</h2>
+      <p class="lead">내가 쓴 내용으로 Gemini 스토리북에 넣을 프롬프트가 자동으로 만들어져요.</p>
+      <label class="field"><span>그림 스타일 (선택)</span></label>
+      <div class="chips" data-chips="style">
+        <button class="chip" data-v="따뜻한 수채화">따뜻한 수채화</button>
+        <button class="chip" data-v="연필 스케치">연필 스케치</button>
+        <button class="chip" data-v="밝은 만화풍">밝은 만화풍</button>
+        <button class="chip" data-v="종이 오려 붙이기(콜라주)">콜라주</button>
+        <button class="chip" data-v="">AI에게 맡기기</button>
+      </div>
+      <label class="field"><span>주인공 모습 (선택)</span></label>
+      <div class="chips" data-chips="hero">
+        <button class="chip" data-v="이름 없는 중학생">이름 없는 중학생</button>
+        <button class="chip" data-v="귀여운 동물 캐릭터">동물 캐릭터</button>
+        <button class="chip" data-v="작은 로봇">작은 로봇</button>
+        <button class="chip" data-v="">AI에게 맡기기</button>
+      </div>
+      <div id="privacy"></div>
+      <div class="prompt" id="promptBox"></div>
+      <label class="check"><input type="checkbox" id="selfCheck">
+        <span>실명, 친구 이름, 연락처, 학교, 주소 같은 개인정보가 들어 있지 않은지 직접 확인했어요.</span></label>
+      <div class="actions">
+        <button class="btn ghost" data-go="1">← 이전</button>
+        <div class="right">
+          <button class="btn dark" id="copyBtn" disabled>프롬프트 복사</button>
+          <button class="btn" id="openBtn" disabled>Gemini 스토리북 열기 ↗</button>
+        </div>
+      </div>
+      <p class="note">복사 → 스토리북에 붙여넣기 → 그림책이 완성되면 이 화면으로 돌아와 <b>저장하고 다음</b>을 눌러요.</p>
+      <div class="actions"><span></span><button class="btn" data-next="3">저장하고 다음</button></div>
+    </section>
+
+    <!-- STEP 3 -->
+    <section class="card step" data-step="3">
+      <h2>3. 내 그림책 살펴보기</h2>
+      <p class="lead">AI가 그림을 얼마나 예쁘게 그렸는지보다, 내 삶의 변화가 잘 드러나는지 살펴봐요.</p>
+      <label class="check"><input type="checkbox" data-k="check1"><span>나의 어려움이 드러난다.</span></label>
+      <label class="check"><input type="checkbox" data-k="check2"><span>과거와 현재의 변화가 드러난다.</span></label>
+      <label class="check"><input type="checkbox" data-k="check3"><span>내가 전하고 싶은 생각이 담겼다.</span></label>
+      <div id="checkHint" class="alert warn hidden">체크하지 못한 항목이 있다면, 스토리북에서 "○○ 장면을 내가 쓴 내용대로 고쳐 줘"처럼 다시 요청해 보세요.</div>
+      <label class="field" style="margin-top:12px"><span>① 나의 변화를 가장 잘 보여 주는 장면</span><textarea data-k="keyScene"></textarea></label>
+      <label class="field"><span>② 이 장면이 중요한 까닭</span><textarea data-k="sceneWhy"></textarea></label>
+      <label class="field"><span>이 경험을 한 권의 이야기로 만들면서 새롭게 깨달은 점 (한 문장)</span><textarea data-k="insight"></textarea></label>
+      <div class="actions">
+        <button class="btn ghost" data-go="2">← 이전</button>
+        <div class="right">
+          <button class="btn ghost" id="padletBtn">패들렛에 공유하러 가기 ↗</button>
+          <button class="btn" data-next="4">저장하고 다음</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 4 -->
+    <section class="card step" data-step="4">
+      <h2>4. 친구의 성장 이야기 & 정리</h2>
+      <p class="lead">친구의 이야기는 평가하거나 비교할 대상이 아니에요. 서로 다른 경험과 변화를 존중하며 읽어요.</p>
+      <label class="field"><span>내가 읽은 그림책</span><input type="text" data-k="friendBook" maxlength="60"></label>
+      <label class="field"><span>친구가 겪은 어려움 또는 변화의 순간</span><textarea data-k="friendMoment"></textarea></label>
+      <label class="field"><span>친구의 이야기를 통해 새롭게 알게 된 성장의 모습</span></label>
+      <div class="frame">성장에는 <input type="text" data-k="growthAlso" maxlength="80"> 도 있다.</div>
+      <label class="field" style="margin-top:14px"><span>나의 성장 이야기와 친구의 성장 이야기에서 비슷한 점 또는 다른 점</span><textarea data-k="compare"></textarea></label>
+      <label class="field"><span>문학이 나에게 남긴 변화</span></label>
+      <div class="frame">「<span class="work"></span>」을(를) 읽고 나의 삶을 돌아보면서 <input type="text" data-k="realized" maxlength="80"> 을/를 깨달았다.</div>
+      <div class="frame">문학은 나에게 <input type="text" data-k="literature" maxlength="80"> 을/를 가능하게 해 준다.</div>
+      <label class="check" style="margin-top:10px"><input type="checkbox" data-k="anonymous"><span>선생님 화면에 문장을 띄울 때 내 이름을 가려 주세요 (익명).</span></label>
+      <div class="actions">
+        <button class="btn ghost" data-go="3">← 이전</button>
+        <button class="btn" data-next="5">제출하기</button>
+      </div>
+    </section>
+
+    <!-- DONE -->
+    <section class="card step" data-step="5">
+      <div class="done-box">
+        <div class="big">나의 성장 이야기가 저장되었어요 📖</div>
+        <p class="lead" style="margin-top:8px">고칠 곳이 있으면 위의 단계를 눌러 다시 고친 뒤 저장할 수 있어요.</p>
+        <button class="btn ghost" id="logout2">다음 학생에게 넘기기</button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="assets/api.js"></script>
+<script>
+const { api, esc, toast, store, normRoom } = App;
+const STEPS = ['내 이야기', '프롬프트', '그림책 점검', '친구 & 정리'];
+const STORY_KEYS = ['hardship', 'pastAction', 'pastView', 'nowAction', 'reason', 'growth'];
+let ROOM = null;
+let state = freshState();
+
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+
+function freshState() { return { step: 1, maxStep: 0, who: null, data: { style: '', hero: '' } }; }
+
+// ---------- 수업방 ----------
+async function enterRoom(code) {
+  code = normRoom(code);
+  if (!code) return toast('수업방 코드를 입력해 주세요.');
+  const btn = $('#roomBtn');
+  btn.disabled = true; btn.textContent = '확인 중…';
+  try {
+    ROOM = await api('roomInfo', { room: code });
+    store.set('localStorage', 'gs_room', ROOM.room);
+    $('#roomBadge').textContent = ROOM.room;
+    $('#roomDesc').textContent = `${ROOM.title} · ${ROOM.teacher} 선생님`;
+    $('#appSub').textContent = `「${ROOM.workTitle}」와 함께 발견하는 나의 성장 이야기`;
+    $$('.work').forEach(el => el.textContent = ROOM.workTitle);
+    $('#cls').innerHTML = '<option value="">선택</option>' +
+      ROOM.classes.map(c => `<option value="${esc(c)}">${esc(ROOM.grade)}-${esc(c)}반</option>`).join('');
+    $('#roomCard').classList.add('hidden');
+    $('#login').classList.remove('hidden');
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '확인';
+  }
+}
+$('#roomBtn').onclick = () => enterRoom($('#roomInput').value);
+$('#roomInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('#roomBtn').click(); });
+$('#changeRoom').onclick = () => { ROOM = null; $('#login').classList.add('hidden'); $('#roomCard').classList.remove('hidden'); };
+
+// ---------- 학생 확인 ----------
+$('#startBtn').onclick = async () => {
+  const cls = $('#cls').value, num = $('#num').value.trim(), name = $('#name').value.replace(/\s+/g, '');
+  if (!cls || !num || !name) return toast('반, 번호, 이름을 모두 입력해 주세요.');
+  const btn = $('#startBtn');
+  btn.disabled = true; btn.textContent = '불러오는 중…';
+  try {
+    const who = { room: ROOM.room, cls, num, name };
+    const res = await api('loadStudent', who);
+    if (!res.record && res.otherNameExists) {
+      const ok = confirm(`${ROOM.grade}학년 ${cls}반 ${num}번으로 저장된 다른 이름의 기록이 있어요.\n\n이름 "${name}"(으)로 새로 시작할까요?\n(이어서 쓰려던 거라면 '취소'를 누르고 이름을 다시 확인하세요.)`);
+      if (!ok) return;
+    }
+    state = freshState();
+    state.who = who;
+    Object.assign(state.data, res.record || {});
+    state.maxStep = Number((res.record && res.record.step) || 0);
+    fillForm();
+    $('#login').classList.add('hidden');
+    $('#app').classList.remove('hidden');
+    $('#who').textContent = `${ROOM.grade}학년 ${cls}반 ${num}번 ${name}`;
+    go(state.maxStep >= 4 ? 5 : Math.max(1, state.maxStep + (state.maxStep ? 1 : 0)));
+    toast(res.record ? '지난번에 쓴 내용을 불러왔어요.' : '새로 시작해요. 차근차근 써 볼까요?');
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '시작하기';
+  }
+};
+
+function logout() {
+  state = freshState();
+  fillForm();
+  $('#selfCheck').checked = false;
+  $('#num').value = ''; $('#name').value = ''; $('#cls').value = '';
+  $('#app').classList.add('hidden');
+  $('#login').classList.remove('hidden');
+  window.scrollTo(0, 0);
+}
+$('#logout').onclick = () => { if (confirm('지금까지 쓴 내용은 저장된 단계까지만 남아요. 다른 학생으로 시작할까요?')) logout(); };
+$('#logout2').onclick = logout;
+
+function fillForm() {
+  $$('[data-k]').forEach(el => {
+    const v = state.data[el.dataset.k];
+    if (el.type === 'checkbox') el.checked = v === true || v === 'TRUE';
+    else el.value = v == null ? '' : v;
+  });
+  $$('[data-chips]').forEach(g => {
+    const v = state.data[g.dataset.chips] || '';
+    g.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.v === v));
+  });
+}
+
+function collect() {
+  $$('[data-k]').forEach(el => {
+    state.data[el.dataset.k] = el.type === 'checkbox' ? el.checked : el.value.trim();
+  });
+  state.data.prompt = buildPrompt(state.data);
+}
+
+// ---------- 단계 이동 ----------
+function renderStepper() {
+  $('#stepper').innerHTML = STEPS.map((s, i) => {
+    const n = i + 1;
+    const cls = [n === state.step ? 'on' : '', state.maxStep >= n ? 'done' : ''].join(' ');
+    return `<button class="${cls}" data-go="${n}"><b>${n}단계</b>${s}</button>`;
+  }).join('');
+}
+
+function go(n) {
+  state.step = n;
+  $$('.step').forEach(s => s.classList.toggle('hidden', Number(s.dataset.step) !== n));
+  renderStepper();
+  if (n === 2) refreshPrompt();
+  if (n === 3) updateCheckHint();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+document.addEventListener('click', e => {
+  const goBtn = e.target.closest('[data-go]');
+  if (goBtn) { collect(); go(Number(goBtn.dataset.go)); return; }
+  const next = e.target.closest('[data-next]');
+  if (next) { save(Number(next.dataset.next), next); return; }
+  const chip = e.target.closest('.chip');
+  if (chip) {
+    const g = chip.parentElement;
+    g.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+    chip.classList.add('on');
+    state.data[g.dataset.chips] = chip.dataset.v;
+    refreshPrompt();
+  }
+});
+
+function payload(step) {
+  return Object.assign({}, state.who, { step, data: state.data });
+}
+
+async function save(nextStep, btn) {
+  collect();
+  if (state.step === 1) {
+    const missing = STORY_KEYS.filter(k => !state.data[k]);
+    if (missing.length && !confirm('아직 비어 있는 칸이 ' + missing.length + '개 있어요. 그래도 다음으로 갈까요?')) return;
+  }
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = '저장 중…';
+  try {
+    const r = await api('saveStudent', payload(nextStep - 1));
+    state.maxStep = Math.max(state.maxStep, r.step);
+    toast('저장했어요 (' + r.savedAt + ')');
+    go(nextStep);
+  } catch (err) {
+    toast('저장 실패: ' + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = label;
+  }
+}
+
+// ---------- 프롬프트 ----------
+function buildPrompt(d) {
+  const f = v => (v && String(v).trim()) || '(아직 쓰지 않았어요)';
+  const grade = ROOM ? ROOM.grade : '1';
+  const work = ROOM ? ROOM.workTitle : '멍키 스패너';
+  const lines = [
+    `나는 중학교 ${grade}학년 학생이야.`,
+    '내가 어려움을 겪었던 경험을 바탕으로 성장 그림책을 만들거야. 과거의 나와 현재의 나의 생각이 어떻게 달라졌는지가 잘 드러나는 그림책으로 만들어 줘.',
+    `1. 내가 겪었던 어려움: ${f(d.hardship)}`,
+    `2. 그때 나는 이렇게 행동했다: ${f(d.pastAction)}`,
+    `3. 지금 생각하는 그때의 나: ${f(d.pastView)}`,
+    `4. 「${work}」를 읽은 지금, 같은 상황이라면: ${f(d.nowAction)}`,
+    `5. 그렇게 행동하려는 이유: ${f(d.reason)}`,
+    `6. 나의 성장, 한 문장으로: ${f(d.growth)}`,
+    '',
+    '[만들 때 지켜 줘]',
+    '- 내가 쓴 경험을 바꾸거나 없던 사건을 새로 지어내지 말아 줘.',
+    '- 앞부분에는 과거의 나, 뒷부분에는 달라진 현재의 나가 드러나도록 장면을 나눠 줘.',
+    '- 등장인물에게 실제 이름을 붙이지 말아 줘.'
+  ];
+  if (d.style) lines.push(`- 그림 스타일: ${d.style}`);
+  if (d.hero) lines.push(`- 주인공은 ${d.hero}(으)로 그려 줘.`);
+  return lines.join('\n');
+}
+
+const PRIVACY_RULES = [
+  { level: 'block', label: '전화번호', re: /01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}/ },
+  { level: 'block', label: '이메일', re: /[\w.+-]+@[\w-]+\.[\w.]+/ },
+  { level: 'block', label: '동·호수', re: /\d+\s?동\s?\d+\s?호/ },
+  { level: 'block', label: '도로명 주소', re: /[가-힣0-9]+(로|길)\s?\d+(-\d+)?(번지)?(?![가-힣])/ },
+  { level: 'warn', label: '학교 이름', re: /[가-힣A-Za-z]{1,8}(초등학교|중학교|고등학교|초교)/ },
+  { level: 'warn', label: '아파트 이름', re: /[가-힣A-Za-z]{2,}\s?아파트/ },
+  { level: 'warn', label: '사람 이름', re: /[가-힣]{2}(이가|이랑|이한테|이와|이네)(?=[\s.,!?]|$)/ }
+];
+const SCAN_KEYS = { hardship: 1, pastAction: 2, pastView: 3, nowAction: 4, reason: 5, growth: 6 };
+
+function scanPrivacy(d) {
+  const found = [];
+  Object.keys(SCAN_KEYS).forEach(k => {
+    const text = d[k] || '';
+    PRIVACY_RULES.forEach(r => {
+      const m = text.match(r.re);
+      if (m) found.push({ level: r.level, label: r.label, item: SCAN_KEYS[k], hit: m[0] });
+    });
+  });
+  const name = state.who && state.who.name;
+  if (name && name.length >= 2) {
+    const given = name.length >= 3 ? name.slice(1) : name;
+    Object.keys(SCAN_KEYS).forEach(k => {
+      const text = d[k] || '';
+      if (text.includes(name) || text.includes(given)) found.push({ level: 'block', label: '내 이름', item: SCAN_KEYS[k], hit: text.includes(name) ? name : given });
+    });
+  }
+  return found;
+}
+
+function refreshPrompt() {
+  collect();
+  const found = scanPrivacy(state.data);
+  const blocks = found.filter(f => f.level === 'block');
+  const warns = found.filter(f => f.level === 'warn');
+  let html = '';
+  blocks.forEach(f => html += `<div class="alert danger">🚫 ${f.item}번 칸에 <b>${esc(f.label)}</b>로 보이는 내용이 있어요: “${esc(f.hit)}” → 1단계로 돌아가 지워 주세요.</div>`);
+  warns.forEach(f => html += `<div class="alert warn">⚠️ ${f.item}번 칸의 “${esc(f.hit)}” — 혹시 ${esc(f.label)}인가요? 그렇다면 ‘친구’, ‘우리 학교’처럼 바꿔 주세요.</div>`);
+  const empty = STORY_KEYS.filter(k => !state.data[k]).length;
+  if (empty) html += `<div class="alert warn">아직 비어 있는 칸이 ${empty}개 있어요. 빈칸이 많으면 AI가 이야기를 지어낼 수 있어요.</div>`;
+  if (!blocks.length && !warns.length && !empty) html += '<div class="alert ok">자동 점검에서 개인정보가 발견되지 않았어요. 그래도 한 번 더 직접 확인해요.</div>';
+  $('#privacy').innerHTML = html;
+  $('#promptBox').textContent = state.data.prompt;
+  const ok = !blocks.length && $('#selfCheck').checked;
+  $('#copyBtn').disabled = !ok;
+  $('#openBtn').disabled = !ok;
+}
+$('#selfCheck').onchange = refreshPrompt;
+
+$('#copyBtn').onclick = () => {
+  const text = state.data.prompt;
+  const done = () => toast('복사했어요! 스토리북에 붙여넣으세요.');
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    ok ? done() : toast('복사가 안 되면 프롬프트를 길게 눌러 직접 복사해 주세요.');
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+  else fallback();
+  api('saveStudent', payload(1)).catch(() => {});
+};
+$('#openBtn').onclick = () => window.open(ROOM.storybookUrl, '_blank', 'noopener');
+$('#padletBtn').onclick = () => {
+  if (ROOM.padletUrl) window.open(ROOM.padletUrl, '_blank', 'noopener');
+  else toast('선생님이 아직 패들렛 주소를 등록하지 않았어요.');
+};
+
+function updateCheckHint() {
+  const all = ['check1', 'check2', 'check3'].every(k => document.querySelector(`[data-k="${k}"]`).checked);
+  $('#checkHint').classList.toggle('hidden', all);
+}
+$$('[data-k^="check"]').forEach(el => el.addEventListener('change', updateCheckHint));
+
+// ---------- 시작 ----------
+(function init() {
+  const params = new URLSearchParams(location.search);
+  const code = normRoom(params.get('room') || store.get('localStorage', 'gs_room') || '');
+  if (code) { $('#roomInput').value = code; enterRoom(code); }
+})();
+</script>
+</body>
+</html>
