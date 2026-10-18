@@ -174,7 +174,6 @@ async function enterRoom(code) {
   btn.disabled = true; btn.textContent = '확인 중…';
   try {
     ROOM = await api('roomInfo', { room: code });
-    store.set('localStorage', 'gs_room', ROOM.room);
     $('#roomBadge').textContent = ROOM.room;
     $('#roomDesc').textContent = `${ROOM.title} · ${ROOM.teacher} 선생님`;
     $('#appSub').textContent = `「${ROOM.workTitle}」와 함께 발견하는 나의 성장 이야기`;
@@ -191,7 +190,12 @@ async function enterRoom(code) {
 }
 $('#roomBtn').onclick = () => enterRoom($('#roomInput').value);
 $('#roomInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('#roomBtn').click(); });
-$('#changeRoom').onclick = () => { ROOM = null; $('#login').classList.add('hidden'); $('#roomCard').classList.remove('hidden'); };
+$('#changeRoom').onclick = () => {
+  ROOM = null;
+  $('#roomInput').value = '';
+  history.replaceState(null, '', location.pathname);   // 주소창의 ?room= 도 지움
+  $('#login').classList.add('hidden'); $('#roomCard').classList.remove('hidden');
+};
 
 // ---------- 학생 확인 ----------
 $('#startBtn').onclick = async () => {
@@ -416,7 +420,8 @@ $$('[data-k^="check"]').forEach(el => el.addEventListener('change', updateCheckH
 // ---------- 시작 ----------
 (function init() {
   const params = new URLSearchParams(location.search);
-  const code = normRoom(params.get('room') || store.get('localStorage', 'gs_room') || '');
+  store.del('localStorage', 'gs_room');   // 예전 버전이 기억해 둔 수업방 코드 지우기
+  const code = normRoom(params.get('room') || '');
   if (code) { $('#roomInput').value = code; enterRoom(code); }
 })();
 </script>
